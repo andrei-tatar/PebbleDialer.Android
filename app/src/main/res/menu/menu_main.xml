@@ -1,0 +1,23 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
+    <item android:id="@+id/action_add"
+        android:icon="@android:drawable/ic_input_add"
+        android:title="Add"
+        android:showAsAction="always" />
+    <item android:id="@+id/action_enable"
+        android:showAsAction="always"
+        android:title="On"/>
+    <item android:id="@+id/action_notifycalls"
+        android:title="Notify Calls"
+        android:checkable="true"
+        android:orderInCategory="1" android:showAsAction="never" />
+    <item android:id="@+id/action_installapp"
+        android:title="Install Watch App"
+        android:orderInCategory="2" android:showAsAction="never" />
+    <item android:id="@+id/action_test1"
+        android:title="Test 1"
+        android:orderInCategory="1001" android:showAsAction="never"/>
+    <item android:id="@+id/action_test2"
+        android:title="Test 2"
+        android:orderInCategory="1002" android:showAsAction="never"/>
+</menu>

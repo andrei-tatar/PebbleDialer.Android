@@ -1,0 +1,32 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 21
+    buildToolsVersion "21.1.1"
+
+    defaultConfig {
+        applicationId "atatar.com.pebbledialer"
+        minSdkVersion 18
+        targetSdkVersion 21
+        versionCode 2
+        versionName "1.1"
+    }
+    buildTypes {
+        release {
+            runProguard false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/groups/public/" }
+}
+
+dependencies {
+    compile 'de.timroes.android:EnhancedListView:0.3.4'
+    compile 'com.getpebble:pebblekit:2.6.0'
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+
+}
