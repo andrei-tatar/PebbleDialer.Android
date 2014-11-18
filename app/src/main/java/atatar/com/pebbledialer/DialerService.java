@@ -3,6 +3,7 @@ package atatar.com.pebbledialer;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Binder;
@@ -15,17 +16,17 @@ import android.telephony.TelephonyManager;
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class DialerService extends Service implements IDialerService {
     final byte contactsSyncPacket = (byte)13;
     final byte notifyCallId = (byte)15;
+
+    public static final int MaxContacts = 10;
 
     enum SyncType {
         All,
@@ -33,12 +34,17 @@ public class DialerService extends Service implements IDialerService {
         History
     }
 
-    private final static String contactsFileName = "contacts.data";
+    enum SaveType {
+        All,
+        General,
+        Contacts,
+        Messages
+    }
+
     private PebbleDataSender pebbleDataSender;
 
     private Preferences preferences;
-    private TelephonyManager telephonyManager;
-    private String calledNumber = "";
+    private String currentNumber = "";
 
     private PhoneStateListener phoneStateListener = new PhoneStateListener() {
         private boolean isRinging = false;
@@ -60,8 +66,8 @@ public class DialerService extends Service implements IDialerService {
                     showCall.addUint8(0, (byte) 0xCA);
                     showCall.addUint8(1, (byte) 2);
                     if (!isRinging) {
-                        showCall.addString(2, getName(calledNumber));
-                        showCall.addString(3, calledNumber);
+                        showCall.addString(2, getName(currentNumber));
+                        showCall.addString(3, currentNumber);
                     }
 
                     pebbleDataSender.sendData(showCall);
@@ -77,6 +83,7 @@ public class DialerService extends Service implements IDialerService {
                     showRingingCall.addUint8(1, (byte) 1);
                     showRingingCall.addString(2, getName(incomingNumber));
                     showRingingCall.addString(3, incomingNumber);
+                    currentNumber = incomingNumber;
 
                     pebbleDataSender.sendData(showRingingCall, notifyCallId, 3);
                     break;
@@ -102,10 +109,10 @@ public class DialerService extends Service implements IDialerService {
                         return;
                     }
 
-                    calledNumber = pebbleTuples.getString(Constants.KEY_PHONE_NUMBER);
+                    currentNumber = pebbleTuples.getString(Constants.KEY_PHONE_NUMBER);
                     Intent intent = new Intent(Intent.ACTION_CALL);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.setData(Uri.parse("tel:" + calledNumber));
+                    intent.setData(Uri.parse("tel:" + currentNumber));
                     context.startActivity(intent);
                     break;
                 case Constants.TYPE_REQUEST_HANG_CALL:
@@ -166,7 +173,7 @@ public class DialerService extends Service implements IDialerService {
         pebbleDataSender = new PebbleDataSender(getApplicationContext(), Constants.watchAppUuid);
         PebbleKit.registerReceivedDataHandler(context, dataReceiver);
 
-        telephonyManager = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);
+        TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
         telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
     }
 
@@ -248,7 +255,7 @@ public class DialerService extends Service implements IDialerService {
     }
 
     private void addDataPacketsToSync(List<Contact> contacts, boolean history) {
-        int count = contacts.size();
+        int count = Math.min(MaxContacts, contacts.size());
         for (int i = 0; i < count; i += 2) {
             PebbleDictionary data = new PebbleDictionary();
             data.addUint8(Constants.KEY_TYPE, Constants.TYPE_CONTACT);
@@ -261,8 +268,8 @@ public class DialerService extends Service implements IDialerService {
                 name = name.substring(0, Math.min(20, name.length()));
 
                 byte index = (byte)ii;
-                if (ii == count-1) index |= 0x80;
-                if (history) index |= 0x40;
+                if (ii == count-1) index |= Constants.MASK_IS_LAST;
+                if (history) index |= Constants.MASK_IS_HISTORY;
                 data.addUint8(Constants.KEY_CONTACT_INDEX + j * 10, index);
                 data.addString(Constants.KEY_CONTACT_NAME + j * 10, name);
                 data.addString(Constants.KEY_CONTACT_PHONE + j * 10, contact.Phone.Number);
@@ -275,7 +282,7 @@ public class DialerService extends Service implements IDialerService {
         if (count == 0) {
             PebbleDictionary data = new PebbleDictionary();
             data.addUint8(Constants.KEY_TYPE, Constants.TYPE_CONTACT);
-            data.addUint8(Constants.KEY_CONTACT_INDEX, (byte) (0x80 | 0x20 | (history ? 0x40 : 0 )));
+            data.addUint8(Constants.KEY_CONTACT_INDEX, (byte) (Constants.MASK_IS_LAST | Constants.MASK_IS_EMPTY | (history ? Constants.MASK_IS_HISTORY : 0 )));
             pebbleDataSender.sendData(data, contactsSyncPacket);
         }
     }
@@ -287,31 +294,54 @@ public class DialerService extends Service implements IDialerService {
     }*/
 
     private void load() {
-        FileInputStream fis;
-        try {
-            fis = getApplicationContext().openFileInput(contactsFileName);
+        preferences = new Preferences();
+        SharedPreferences prefs;
 
-            ObjectInputStream is = new ObjectInputStream(fis);
-            preferences = (Preferences) is.readObject();
-            is.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            preferences = new Preferences();
-            preferences.ServiceEnabled = false;
-            preferences.Contacts = new ArrayList<Contact>();
-            preferences.NotifyCalls = true;
+        prefs = getSharedPreferences("general", MODE_PRIVATE);
+        preferences.ServiceEnabled = prefs.getBoolean("ServiceEnabled", true);
+        preferences.NotifyCalls = prefs.getBoolean("NotifyCalls", false);
+
+        prefs = getSharedPreferences("contacts", MODE_PRIVATE);
+        for (String contact : prefs.getStringSet("Data", new HashSet<String>())) {
+            Contact c = new Contact();
+            String[] parts = contact.split(Pattern.quote("^"));
+
+            if (parts.length != 4) continue;
+
+            c.Name = parts[0];
+            c.ImageUri = parts[1];
+            c.Phone.Number = parts[2];
+            c.Phone.Label = parts[3];
+            preferences.Contacts.add(c);
         }
+
+        prefs = getSharedPreferences("messages", MODE_PRIVATE);
+        preferences.Messages.addAll(prefs.getStringSet("Data", new HashSet<String>()));
     }
 
-    private void save() {
-        try {
-            Context context = getApplicationContext();
-            FileOutputStream fos = context.openFileOutput(DialerService.contactsFileName, Context.MODE_PRIVATE);
-            ObjectOutputStream os = new ObjectOutputStream(fos);
-            os.writeObject(preferences);
-            os.close();
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    private void save(SaveType type) {
+        SharedPreferences.Editor editor;
+
+        if (type == SaveType.All || type == SaveType.General) {
+            editor = getSharedPreferences("general", MODE_PRIVATE).edit();
+            editor.putBoolean("ServiceEnabled", preferences.ServiceEnabled);
+            editor.putBoolean("NotifyCalls", preferences.NotifyCalls);
+            editor.commit();
+        }
+
+        if (type == SaveType.All || type == SaveType.Contacts) {
+            editor = getSharedPreferences("contacts", MODE_PRIVATE).edit();
+            HashSet<String> contacts = new HashSet<String>();
+            for (Contact c : preferences.Contacts)
+                contacts.add(c.Name + "^" + c.ImageUri + "^" + c.Phone.Number + "^" + c.Phone.Label);
+            editor.putStringSet("Data", contacts);
+            editor.commit();
+        }
+
+        if (type == SaveType.All || type == SaveType.Messages) {
+            editor = getSharedPreferences("messages", MODE_PRIVATE).edit();
+            editor.putStringSet("Data", new HashSet<String>(preferences.Messages));
+            editor.commit();
         }
     }
 
@@ -330,6 +360,29 @@ public class DialerService extends Service implements IDialerService {
     }
 
     @Override
+    public String[] getMessages() {
+        return getPreferences().Messages.toArray(new String[getPreferences().Messages.size()]);
+    }
+
+    @Override
+    public void appendMessage(String message) {
+        getPreferences().Messages.add(message);
+        save(SaveType.Messages);
+    }
+
+    @Override
+    public void insertMessage(int position, String message) {
+        getPreferences().Messages.add(position, message);
+        save(SaveType.Messages);
+    }
+
+    @Override
+    public void removeMessage(int position) {
+        getPreferences().Messages.remove(position);
+        save(SaveType.Messages);
+    }
+
+    @Override
     public Contact[] getContacts() {
         return getPreferences().Contacts.toArray(new Contact[getPreferences().Contacts.size()]);
     }
@@ -337,7 +390,7 @@ public class DialerService extends Service implements IDialerService {
     @Override
     public void appendContact(Contact contact) {
         getPreferences().Contacts.add(contact);
-        save();
+        save(SaveType.Contacts);
         if (getPreferences().ServiceEnabled)
             syncContacts(SyncType.Contacts);
     }
@@ -345,7 +398,7 @@ public class DialerService extends Service implements IDialerService {
     @Override
     public void removeContact(int position) {
         getPreferences().Contacts.remove(position);
-        save();
+        save(SaveType.Contacts);
         if (getPreferences().ServiceEnabled)
             syncContacts(SyncType.Contacts);
     }
@@ -353,7 +406,7 @@ public class DialerService extends Service implements IDialerService {
     @Override
     public void insertContact(int position, Contact contact) {
         getPreferences().Contacts.add(position, contact);
-        save();
+        save(SaveType.Contacts);
         if (getPreferences().ServiceEnabled)
             syncContacts(SyncType.Contacts);
     }
@@ -361,7 +414,7 @@ public class DialerService extends Service implements IDialerService {
     @Override
     public void setEnabled(boolean enabled) {
         getPreferences().ServiceEnabled = enabled;
-        save();
+        save(SaveType.General);
     }
 
     @Override
@@ -377,7 +430,7 @@ public class DialerService extends Service implements IDialerService {
     @Override
     public void setNotifyCalls(boolean notifyCalls) {
         getPreferences().NotifyCalls = notifyCalls;
-        save();
+        save(SaveType.General);
     }
 
     @Override
@@ -404,10 +457,16 @@ public class DialerService extends Service implements IDialerService {
 }
 
 interface IDialerService {
+    String[] getMessages();
+    void appendMessage(String message);
+    void insertMessage(int position, String message);
+    void removeMessage(int position);
+
     Contact[] getContacts();
     void appendContact(Contact contact);
     void insertContact(int position, Contact contact);
     void removeContact(int position);
+
     void setEnabled(boolean enabled);
     boolean getEnabled();
 

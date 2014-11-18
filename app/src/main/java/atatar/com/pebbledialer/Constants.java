@@ -22,4 +22,8 @@ class Constants {
     static final byte KEY_CONTACT_TYPE  = 4;
 
     static final UUID watchAppUuid = UUID.fromString("3eb97e36-d782-4d55-88e5-be70145944cc");
+
+    static final byte MASK_IS_LAST = (byte) 0x80;
+    static final byte MASK_IS_HISTORY = 0x40;
+    static final byte MASK_IS_EMPTY = 0x20;
 }
