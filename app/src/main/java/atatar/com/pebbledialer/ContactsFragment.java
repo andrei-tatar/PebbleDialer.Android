@@ -57,6 +57,9 @@ public class ContactsFragment extends Fragment implements IServiceConnectedListe
 
                 if (item.ImageUri != null)
                     holder.imageView.setImageURI(Uri.parse(item.ImageUri));
+                else
+                    holder.imageView.setImageResource(android.R.drawable.sym_action_call);
+
                 holder.numberTextView.setText(item.Phone.Label + " " + item.Phone.Number);
                 holder.nameTextView.setText(item.Name);
             }
@@ -96,7 +99,6 @@ public class ContactsFragment extends Fragment implements IServiceConnectedListe
         mListView.setAdapter(mAdapter);
         mListView.setSwipeDirection(EnhancedListView.SwipeDirection.BOTH);
         mListView.enableSwipeToDismiss();
-
         return view;
     }
 

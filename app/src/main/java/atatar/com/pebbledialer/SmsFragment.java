@@ -4,12 +4,14 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -77,7 +79,12 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
         mListView.setAdapter(mAdapter);
         mListView.setSwipeDirection(EnhancedListView.SwipeDirection.BOTH);
         mListView.enableSwipeToDismiss();
-
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                showEditMessageDialog(mAdapter.getItem(i), i);
+            }
+        });
         return view;
     }
 
@@ -87,26 +94,40 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
         super.onCreateOptionsMenu(menu, inflater);
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_add) {
-            final EditText input = new EditText(getActivity());
-            new AlertDialog.Builder(getActivity())
-                    .setTitle("New Message")
-                    .setMessage("Type the new message")
-                    .setView(input)
-                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            String message = input.getText().toString();
+    private void showEditMessageDialog(String initialMessage, final int position) {
+        final EditText input = new EditText(getActivity());
+        input.setInputType(
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES |
+                        InputType.TYPE_TEXT_FLAG_MULTI_LINE );
+        input.setText(initialMessage);
+
+        new AlertDialog.Builder(getActivity())
+                .setTitle(position == -1 ? "New" : "Edit")
+                .setView(input)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        String message = input.getText().toString();
+                        if (position != -1) {
+                            mAdapter.update(position, message);
+                            dialerService.updateMessage(position, message);
+                        } else {
                             mAdapter.add(message);
                             dialerService.appendMessage(message);
                         }
-                    })
-                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            dialog.dismiss();
-                        }
-                    }).show();
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        dialog.dismiss();
+                    }
+                }).show();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_add) {
+            showEditMessageDialog("", -1);
+
             return true;
         }
 

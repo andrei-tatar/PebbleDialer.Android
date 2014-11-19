@@ -67,6 +67,9 @@ public class MainActivity extends FragmentActivity {
 
             item = menu.findItem(R.id.action_notifycalls);
             item.setChecked(dialerService.getNotifyCalls());
+
+            item = menu.findItem(R.id.action_removeaccents);
+            item.setChecked(dialerService.getRemoveAccents());
         }
 
         return super.onPrepareOptionsMenu(menu);
@@ -103,18 +106,15 @@ public class MainActivity extends FragmentActivity {
 
             case R.id.action_notifycalls:
                 if (dialerService == null) return false;
+                boolean enabled = !item.isChecked();
+                if (dialerService.setNotifyCalls(enabled))
+                    item.setChecked(enabled);
+                return true;
+
+            case R.id.action_removeaccents:
+                if (dialerService == null) return false;
                 item.setChecked(!item.isChecked());
-                dialerService.setNotifyCalls(item.isChecked());
-                return true;
-
-            case R.id.action_test1:
-                if (dialerService == null) return false;
-                dialerService.testMethod(1);
-                return true;
-
-            case R.id.action_test2:
-                if (dialerService == null) return false;
-                dialerService.testMethod(2);
+                dialerService.setRemoveAccents(item.isChecked());
                 return true;
         }
 

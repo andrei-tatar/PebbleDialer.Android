@@ -33,6 +33,11 @@ abstract class EnhancedListAdapter<T> extends BaseAdapter {
         notifyDataSetChanged();
     }
 
+    public void update(int position, T item) {
+        mItems.set(position, item);
+        notifyDataSetChanged();
+    }
+
     public void add(T item){
         mItems.add(item);
         notifyDataSetChanged();
