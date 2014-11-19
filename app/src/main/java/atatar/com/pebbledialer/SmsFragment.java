@@ -1,5 +1,7 @@
 package atatar.com.pebbledialer;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -8,9 +10,8 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.TextView;
-
-import java.util.Date;
 
 import de.timroes.android.listview.EnhancedListView;
 
@@ -26,7 +27,6 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-        ((MainActivity)getActivity()).addServiceConnectionListener(this);
         mAdapter = new EnhancedListAdapter<String>(getLayoutInflater(savedInstanceState), R.layout.sms_list_item) {
             @Override
             protected void populateView(View view, String item) {
@@ -42,6 +42,8 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
                 holder.smsTextView.setText(item);
             }
         };
+
+        ((MainActivity)getActivity()).addServiceConnectionListener(this);
     }
 
     @Override
@@ -88,9 +90,23 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_add) {
-            String test = "This is a new SMS " + new Date().toString();
-            mAdapter.add(test);
-            dialerService.appendMessage(test);
+            final EditText input = new EditText(getActivity());
+            new AlertDialog.Builder(getActivity())
+                    .setTitle("New Message")
+                    .setMessage("Type the new message")
+                    .setView(input)
+                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            String message = input.getText().toString();
+                            mAdapter.add(message);
+                            dialerService.appendMessage(message);
+                        }
+                    })
+                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            dialog.dismiss();
+                        }
+                    }).show();
             return true;
         }
 
@@ -100,5 +116,7 @@ public class SmsFragment extends Fragment implements IServiceConnectedListener {
     @Override
     public void onServiceConnected(IDialerService service) {
         dialerService = service;
+        mAdapter.clear();
+        for (String c : dialerService.getMessages()) mAdapter.add(c);
     }
 }

@@ -41,7 +41,6 @@ public class ContactsFragment extends Fragment implements IServiceConnectedListe
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-        ((MainActivity)getActivity()).addServiceConnectionListener(this);
         mAdapter = new EnhancedListAdapter<Contact>(getLayoutInflater(savedInstanceState), R.layout.contact_list_item) {
             @Override
             protected void populateView(View view, Contact item) {
@@ -62,6 +61,8 @@ public class ContactsFragment extends Fragment implements IServiceConnectedListe
                 holder.nameTextView.setText(item.Name);
             }
         };
+
+        ((MainActivity)getActivity()).addServiceConnectionListener(this);
     }
 
     @Override
@@ -167,14 +168,8 @@ public class ContactsFragment extends Fragment implements IServiceConnectedListe
     @Override
     public void onServiceConnected(IDialerService service) {
         dialerService = service;
-        refreshContacts();
-    }
-
-    private void refreshContacts() {
-        if (dialerService == null || mAdapter == null) return;
-        Contact[] contacts = dialerService.getContacts();
         mAdapter.clear();
-        for (Contact c : contacts) mAdapter.add(c);
+        for (Contact c : dialerService.getContacts()) mAdapter.add(c);
     }
 
     private ContactInfo getContactInfo(Uri data) {
