@@ -16,6 +16,9 @@ public class DialerPhoneStateListener extends PhoneStateListener {
 
     @Override
     public void onCallStateChanged(int state, String incomingNumber) {
+        if (!service.getPreferences().NotifyCalls)
+            return;
+
         switch (state) {
             case TelephonyManager.CALL_STATE_IDLE:
                 isRinging = false;
@@ -26,7 +29,6 @@ public class DialerPhoneStateListener extends PhoneStateListener {
                 break;
 
             case TelephonyManager.CALL_STATE_OFFHOOK:
-                if (!service.getPreferences().NotifyCalls) break;
                 PebbleKit.startAppOnPebble(service, Constants.watchAppUuid);
 
                 PebbleDictionary showCall = new PebbleDictionary();
@@ -41,7 +43,6 @@ public class DialerPhoneStateListener extends PhoneStateListener {
                 break;
 
             case TelephonyManager.CALL_STATE_RINGING:
-                if (!service.getPreferences().NotifyCalls) break;
                 PebbleKit.startAppOnPebble(service, Constants.watchAppUuid);
                 isRinging = true;
 
