@@ -41,8 +41,11 @@ public class Util {
         while (cursor.moveToNext()) {
             Contact c = new Contact();
             String name = cursor.getString(nameIndex), phoneNumber = cursor.getString(numberIndex);
-            if (name == null || phoneNumber == null)
+            if (phoneNumber == null)
                 continue;
+
+            if (name == null)
+                name = "Unknown";
 
             boolean exists = false;
             for (Contact existing : contacts) {
