@@ -1,4 +1,4 @@
-package atatar.com.pebbledialer;
+package com.atatar.pebbledialer;
 
 import android.app.Activity;
 import android.app.AlertDialog;

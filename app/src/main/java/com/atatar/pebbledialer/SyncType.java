@@ -1,4 +1,4 @@
-package atatar.com.pebbledialer;
+package com.atatar.pebbledialer;
 
 public enum SyncType {
     AllExceptMessages,

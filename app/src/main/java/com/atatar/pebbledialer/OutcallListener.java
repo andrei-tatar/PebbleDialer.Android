@@ -1,4 +1,4 @@
-package atatar.com.pebbledialer;
+package com.atatar.pebbledialer;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

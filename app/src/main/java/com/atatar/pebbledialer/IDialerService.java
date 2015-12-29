@@ -1,4 +1,4 @@
-package atatar.com.pebbledialer;
+package com.atatar.pebbledialer;
 
 interface IDialerService {
     String[] getMessages();
@@ -11,12 +11,6 @@ interface IDialerService {
     void appendContact(Contact contact);
     void insertContact(int position, Contact contact);
     void removeContact(int position);
-
-    void setEnabled(boolean enabled);
-    boolean getEnabled();
-
-    boolean getNotifyCalls();
-    boolean setNotifyCalls(boolean notifyCalls);
 
     boolean getRemoveAccents();
     void setRemoveAccents(boolean removeAccents);
